@@ -1,4 +1,4 @@
-# Distributed Room Ecosystem: Latency-Optimized Automation
+# Edge-Sync-Room-Ecosystem: Latency-Optimized Automation
 
 ![System Architecture](assets/system_architecture.jpg)
 *(Note: Replace this with your actual architecture diagram or a photo of the finished setup)*
@@ -6,7 +6,7 @@
 ### 🚀 Project Overview
 This project is a distributed IoT ecosystem designed to automate room entry, ambient lighting, and legacy hardware with sub-50ms latency. It orchestrates two microcontrollers (ESP32 & ESP8266) to create a **synchronized environment**—managing physical access via a custom Active IR Tripwire while simultaneously modernizing non-smart devices (RGB Strips) into a cohesive smart home node.
 
-Unlike standard smart plugs, this system utilizes a **custom IR "Heartbeat" protocol** for noise-immune presence detection and implements a **non-blocking architecture** to maintain instant physical response times even during heavy Wi-Fi activity.
+Unlike standard smart plugs, this system utilizes a **custom IR "Heartbeat" protocol** for noise-immune presence detection and implements a **non-blocking architecture** to ensure instant physical response times even during heavy Wi-Fi activity.
 
 **Status:** ✅ Active / Stable v2.1
 
@@ -17,6 +17,8 @@ Unlike standard smart plugs, this system utilizes a **custom IR "Heartbeat" prot
 * **Hardware-Level PWM:** Offloaded 38kHz IR signal generation to the ESP8266 hardware timer, decoupling signal stability from CPU load (Wi-Fi/Blynk tasks).
 * **Anti-Jitter Algorithm:** Implemented a "Smart Latch" timer to distinguish between a lingering person and a re-entry event.
 
+---
+
 ### 🔧 Engineering Journey & Technical Challenges
 
 #### 1. The Sensor Evolution (PIR vs. Active IR)
@@ -25,6 +27,20 @@ The project began as a feasibility study to understand relay logic, initially in
 I pivoted to an **Active IR Tripwire** mechanism:
 * **Problem:** Standard photodiodes were hypersensitive to ambient noise (sunlight), causing false triggers.
 * **Solution:** Upgraded to **TSOP-style receivers** (VS1838B) with internal gain control and band-pass filters.
+
+#### 1.5 The Cloud Latency Lesson (Cloud-to-Edge Pivot)
+Before committing to a hardware-based relay solution, the initial prototype relied on a "No-Code" cloud integration which served as a critical lesson in IoT bottlenecks.
+
+* **The Architecture:** `ESP32 -> Webhooks -> Make.com -> Samsung SmartThings -> Cloud Server -> Smart Bulb`.
+* **The Failure:** This convoluted data path crossed four independent servers, introducing a **3-5 second latency** between the physical beam break and light activation.
+* **The Dependency Risk:** The system was entirely reliant on external uptime. If the third-party webhooks or bulb proprietary clouds were down, the physical room automation ceased to function.
+* **The Solution:** I pivoted to **Edge Computing**, moving the automation logic directly onto the ESP32. By retrofitting a physical relay into the hardware stack, I bypassed all external server dependencies.
+* **The Result:** Reduced trigger latency from ~5000ms to **<50ms (a 99.9% improvement)**, ensuring 100% reliability regardless of internet connectivity.
+
+
+
+[Image of Cloud vs Edge Computing diagram for IoT]
+
 
 #### 2. The "Continuous Signal" Fallacy
 A major hurdle involved the TSOP receiver logic.
@@ -44,6 +60,8 @@ Early iterations focused on a custom enclosure for a single light bulb. I realiz
 ![Relay Wiring](assets/relay_wiring_internals.jpg)
 *(Note: Upload a photo of your relay soldering/wiring to your assets folder)*
 
+---
+
 ### 🛠️ Hardware Architecture
 * **Door Node (Receiver):**
     * **Core:** ESP32 DevKit V1
@@ -52,8 +70,8 @@ Early iterations focused on a custom enclosure for a single light bulb. I realiz
 * **Desk Node (Emitter & Controller):**
     * **Core:** NodeMCU (ESP8266)
     * **Emitters:** 940nm High-Power IR LED (Driven via 2N2222 Transistor on 5V Rail)
-    * **Legacy Control:** IR Emitter (for RGB Strip control)
-* **Protocol:** 38kHz NEC Carrier Wave (Continuous)
+    * **Legacy Control:** IR Emitters for RGB Strip control (NEC Protocol)
+* **Protocol:** 38kHz Modulated Carrier Wave
 
 ### 🔌 Circuit Diagram
 ![Circuit Diagram](schematics/wiring_diagram.png)
@@ -65,7 +83,7 @@ Early iterations focused on a custom enclosure for a single light bulb. I realiz
 * **V0:** Main Room Light (Synced with physical beam break)
 * **V1:** "Party Mode" Lock (Disables automatic sensors)
 * **V2:** Desk RGB Color Selector (Injects NEC Codes)
-* **Automation:** When Door Light turns ON -> Desk Underglow syncs state automatically.
+* **Automation:** When Door Light turns ON -> Desk Underglow syncs state automatically via cloud bridge.
 
 ---
 ### 📜 License
